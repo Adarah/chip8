@@ -1,22 +1,18 @@
 from os import path
 from utils import from_hex
-from time import time
 from memory import Memory
+from display import Display
 from cpu import CPU
 
 base_path = path.dirname("disassembler.py")
 file_path = path.abspath(path.join("..", "c8games", "15PUZZLE"))
-DEBUG = True
-SEED = int(time.time())
-if DEBUG:
-    SEED = 0
-
 
 class Chip8:
 
     def __init__(self):
-        mem = Memory()
-        cpu = CPU()
+        self.mem = Memory()
+        self.disp = Display()
+        self.cpu = CPU(self.mem, self.disp)
         self.init_keypad()
 
 
@@ -27,8 +23,8 @@ class Chip8:
 
 
 c = Chip8()
-c.load_rom(file_path)
+c.mem.load_rom(file_path)
 print(c.PC)
 # print(c.memory[START_ADDRESS:])
 print(c.keypad)
-print(c.memory[from_hex(50) : from_hex(50) + 81])
+print(c.mem.memory[from_hex(50) : from_hex(50) + 81])
