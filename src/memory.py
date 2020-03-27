@@ -1,11 +1,10 @@
-from utils import from_hex
 from consts import START_ADDRESS
 
 
 class Memory:
     def __init__(self):
-        self.memory = [0] * 4096
-        self.stack = [0] * 16
+        self.memory = bytearray(4096)
+        self.stack = bytearray(32)
         self.load_fonts()
 
     def load_rom(self, file):
@@ -28,25 +27,25 @@ class Memory:
         # 10000000
         # 10000000
         fonts = [
-            b"\xF0", b"\x90", b"\x90", b"\x90", b"\xF0", # 0
-            b"\x20", b"\x60", b"\x20", b"\x20", b"\x70", # 1
-            b"\xF0", b"\x10", b"\xF0", b"\x80", b"\xF0", # 2
-            b"\xF0", b"\x10", b"\xF0", b"\x10", b"\xF0", # 3
-            b"\x90", b"\x90", b"\xF0", b"\x10", b"\x10", # 4
-            b"\xF0", b"\x80", b"\xF0", b"\x10", b"\xF0", # 5
-            b"\xF0", b"\x80", b"\xF0", b"\x90", b"\xF0", # 6
-            b"\xF0", b"\x10", b"\x20", b"\x40", b"\x40", # 7
-            b"\xF0", b"\x90", b"\xF0", b"\x90", b"\xF0", # 8
-            b"\xF0", b"\x90", b"\xF0", b"\x10", b"\xF0", # 9
-            b"\xF0", b"\x90", b"\xF0", b"\x90", b"\x90", # A
-            b"\xE0", b"\x90", b"\xE0", b"\x90", b"\xE0", # B
-            b"\xF0", b"\x80", b"\x80", b"\x80", b"\xF0", # C
-            b"\xE0", b"\x90", b"\x90", b"\x90", b"\xE0", # D
-            b"\xF0", b"\x80", b"\xF0", b"\x80", b"\xF0", # E
-            b"\xF0", b"\x80", b"\xF0", b"\x80", b"\x80"  # F
+            0xF0, 0x90, 0x90, 0x90, 0xF0, # 0
+            0x20, 0x60, 0x20, 0x20, 0x70, # 1
+            0xF0, 0x10, 0xF0, 0x80, 0xF0, # 2
+            0xF0, 0x10, 0xF0, 0x10, 0xF0, # 3
+            0x90, 0x90, 0xF0, 0x10, 0x10, # 4
+            0xF0, 0x80, 0xF0, 0x10, 0xF0, # 5
+            0xF0, 0x80, 0xF0, 0x90, 0xF0, # 6
+            0xF0, 0x10, 0x20, 0x40, 0x40, # 7
+            0xF0, 0x90, 0xF0, 0x90, 0xF0, # 8
+            0xF0, 0x90, 0xF0, 0x10, 0xF0, # 9
+            0xF0, 0x90, 0xF0, 0x90, 0x90, # A
+            0xE0, 0x90, 0xE0, 0x90, 0xE0, # B
+            0xF0, 0x80, 0x80, 0x80, 0xF0, # C
+            0xE0, 0x90, 0x90, 0x90, 0xE0, # D
+            0xF0, 0x80, 0xF0, 0x80, 0xF0, # E
+            0xF0, 0x80, 0xF0, 0x80, 0x80  # F
         ]
         # fmt: on
-        address = from_hex(50)
+        address = 0x50
         for byte in fonts:
             self.memory[address] = byte
             address += 1

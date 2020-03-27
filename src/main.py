@@ -1,5 +1,4 @@
 from os import path
-from utils import from_hex
 from memory import Memory
 from display import Display
 from cpu import CPU
@@ -27,4 +26,4 @@ c.mem.load_rom(file_path)
 print(c.PC)
 # print(c.memory[START_ADDRESS:])
 print(c.keypad)
-print(c.mem.memory[from_hex(50) : from_hex(50) + 81])
+print(c.mem.memory[0x50: 0x50 + 81])
