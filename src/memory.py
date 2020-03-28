@@ -1,20 +1,25 @@
 from consts import START_ADDRESS
+from os import path
 
 
 class Memory:
-    def __init__(self):
+    def __init__(self, game_title):
         self.memory = bytearray(4096)
-        self.stack = bytearray(32)
+        self.stack = [0] * 16
         self.load_fonts()
+        self.load_rom(game_title)
 
     def load_rom(self, file):
         # files should be in big-endian format
         data = []
-        with open(file, "rb") as f:
+        base_path = path.dirname("main.py")
+        file_path = path.abspath(path.join("..", "c8games", file))
+        with open(file_path, "rb") as f:
             address = START_ADDRESS
             for byte in iter(lambda: f.read(1), b""):
-                self.memory[address] = byte
+                self.memory[address] = int.from_bytes(byte, "big")
                 address += 1
+        print(self.memory[0x200:0x200+81])
 
     def load_fonts(self):
         # some programs expect fonts to be in the memory position $50

@@ -3,16 +3,16 @@ from memory import Memory
 from display import Display
 from cpu import CPU
 
-base_path = path.dirname("disassembler.py")
-file_path = path.abspath(path.join("..", "c8games", "15PUZZLE"))
 
 class Chip8:
 
     def __init__(self):
-        self.mem = Memory()
+        self.mem = Memory('PONG')
         self.disp = Display()
         self.cpu = CPU(self.mem, self.disp)
         self.init_keypad()
+        while True:
+            pass
 
 
     @classmethod
@@ -22,8 +22,8 @@ class Chip8:
 
 
 c = Chip8()
-c.mem.load_rom(file_path)
-print(c.PC)
-# print(c.memory[START_ADDRESS:])
-print(c.keypad)
-print(c.mem.memory[0x50: 0x50 + 81])
+# c.mem.load_rom(file_path)
+# print(c.PC)
+# # print(c.memory[START_ADDRESS:])
+# print(c.keypad)
+# print(c.mem.memory[0x50: 0x50 + 81])

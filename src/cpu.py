@@ -1,22 +1,27 @@
 from consts import START_ADDRESS
-from memory import Memory
-from display import Display
 import random
+from consts import SEED
+import logging
+
+logging.basicConfig(filename='CPU.log', level=logging.DEBUG, format='%(asctime)s:%(levelname)s:%(message)s')
 
 
 class CPU:
     def __init__(self, memory, display):
+        logging.debug(f"NEW EXECUTION {'-'*80}")
         self.mem = memory
         self.display = display
-        self.register = ["00"] * 16  # general purpose registers (8 bits)
+        self.register = [0] * 16  # general purpose registers (8 bits)
         self.index = 0  # index register  (16 bits)
         self.PC = START_ADDRESS  # program counter  (16 bits)
         self.SP = 0  # stack pointer  (8 bits)
         self.delay_timer = 0
         self.sound_timer = 0
-        self.display = [[0] * 32 for i in range(64)]
         self.opcode = 0
 
+        while True:
+            self.cycle()
+            logging.debug("#"*80)
     # https://en.wikipedia.org/wiki/CHIP-8#Opcode_table
     def op_0NNN(self):
         # call to RCA 1802 program. Since we are not emulating that processor
@@ -24,138 +29,192 @@ class CPU:
         pass
 
     def op_00E0(self):
-        """ clears the screen """
+        """Clears the screen """
         # probably have to change the screen memory too
+        logging.debug("cleaning the screen")
         self.display.screen.fill((0, 0, 0))
 
     def op_00EE(self):
-        # Return from subroutine
-        pass
+        """Return from subroutine"""
+        logging.debug(f"stack pointer: {self.SP}")
+        logging.debug(f"stack: {self.mem.stack}")
+        self.SP -= 1
+        self.PC = self.mem.stack[self.SP]
 
-    def op_1NNN(self, num: hex):
-        """jump to addres NNN"""
+    def op_1NNN(self):
+        """Jump to addres NNN"""
         N = self.opcode[0] & 0x0F
         NN = self.opcode[1]
         NNN = format(N, "X") + format(NN, "X")  # converts to hex and concatenates
         self.PC = int(NNN, 16)
+        logging.debug(f"PC set to address {NNN}")
 
     def op_2NNN(self):
-        # call subroutine at NNN
-        pass
+        """Call subroutine at NNN"""
+        N = self.opcode[0] & 0x0F
+        NN = self.opcode[1]
+        NNN = format(N, "X") + format(NN, "X")  # converts to hex and concatenates
+        logging.debug(f"calling subroutine at {NNN}")
+        self.mem.stack[self.SP] = self.PC
+        logging.debug(f"stored PC in stack position {self.SP}")
+        self.SP += 1
+        self.PC = int(NNN, 16)
+        logging.debug(f"stack: {self.mem.stack}")
 
     def op_3XNN(self):
-        # skip next instruction if VX equals NN
+        """Skip next instruction if VX equals NN"""
         X = self.opcode[0] & 0x0F
         NN = self.opcode[1]
+        logging.debug(f"skipping next instruction if V{X} == {NN}")
         if self.register[X] == NN:
+            logging.debug("skipped!")
             self.PC += 2
 
     def op_4XNN(self):
-        # skips next instruction if Vx does not equal NN
-        # if self.register
+        """Skips next instruction if Vx does not equal NN"""
         X = self.opcode[0] & 0x0F
         NN = self.opcode[1]
+        logging.debug(f"skipping next instruction if V{X} != {NN}")
         if self.register[X] != NN:
+            logging.debug("skipped!")
             self.PC += 2
 
     def op_5XY0(self):
-        # skips next instruction if VX equals VY
+        """Skips next instruction if VX equals VY"""
         X = self.opcode[0] & 0x0F
-        Y = self.opcode[1] & 0xF0
+        Y = (self.opcode[1] & 0xF0) >> 4
+        logging.debug(f"skipping next instruction if V{X} == V{Y}")
         if self.register[X] == self.register[Y]:
+            logging.debug("skipped!")
             self.PC += 2
 
     def op_6XNN(self):
-        # sets VX to NN
+        """Sets VX to NN"""
         X = self.opcode[0] & 0x0F
         NN = self.opcode[1]
+        logging.debug(f"setting V{X} to {NN}")
         self.register[X] = NN
 
     def op_7XNN(self):
-        # adds NN to VX
+        """Adds NN to VX"""
         X = self.opcode[0] & 0x0F
         NN = self.opcode[1]
+        logging.debug(f"V{X} = V{X} + {NN}")
         self.register[X] += NN
 
     def op_8XY0(self):
-        # sets VX to the value of VY
+        """Sets VX to the value of VY"""
         X = self.opcode[0] & 0x0F
-        Y = self.opcode[1] & 0xF0
+        Y = (self.opcode[1] & 0xF0) >> 4
+        logging.debug(f"V{X} <= V{Y}")
         self.register[X] = self.register[Y]
 
     def op_8XY1(self):
-        # sets VX to the value of VX or VY (bitwise)
+        """Sets VX to the value of VX or VY (bitwise)"""
         X = self.opcode[0] & 0x0F
-        Y = self.opcode[1] & 0xF0
+        Y = (self.opcode[1] & 0xF0) >> 4
+        logging.debug(f"V{X} = V{X} | V{Y}")
+        logging.debug(f"V{X} = {bin(self.register[X])}")
+        logging.debug(f"V{Y} = {bin(self.register[Y])}")
         self.register[X] |= self.register[Y]
 
     def op_8XY2(self):
-        # sets VX to the value of VX and VY(bitwise)
+        """Sets VX to the value of VX and VY (bitwise)"""
         X = self.opcode[0] & 0x0F
-        Y = self.opcode[1] & 0xF0
+        Y = (self.opcode[1] & 0xF0) >> 4
+        logging.debug(f"V{X} = V{X} & V{Y}")
+        logging.debug(f"V{X} = {bin(self.register[X])}")
+        logging.debug(f"V{Y} = {bin(self.register[Y])}")
         self.register[X] &= self.register[Y]
 
     def op_8XY3(self):
-        # sets VX to the value of VX xor VY (bitwse)
+        """Sets VX to the value of VX xor VY (bitwse)"""
         X = self.opcode[0] & 0x0F
-        Y = self.opcode[1] & 0xF0
+        Y = (self.opcode[1] & 0xF0) >> 4
+        logging.debug(f"V{X} = V{X} ^ V{Y}")
+        logging.debug(f"V{X} = {bin(self.register[X])}")
+        logging.debug(f"V{Y} = {bin(self.register[Y])}")
         self.register[X] ^= self.register[Y]
 
     def op_8XY4(self):
-        # VX += VY
+        """VX += VY"""
         X = self.opcode[0] & 0x0F
-        Y = self.opcode[1] & 0xF0
-        self.register[X] += self.register[Y]
+        Y = (self.opcode[1] & 0xF0) >> 4
+        addition = self.register[X] + self.register[Y]
+        if addition > 255:
+            self.register[-1] = 1
+        else:
+            self.register[-1] = 0
+        self.register[X] = (addition) & 0xFF  # unsigned sum
 
     def op_8XY5(self):
-        # VX -= VY
+        """VX -= VY"""
         X = self.opcode[0] & 0x0F
-        Y = self.opcode[1] & 0xF0
-        self.register[X] -= self.register[Y]
+        Y = (self.opcode[1] & 0xF0) >> 4
+        logging.debug(f"V{X} -= V{Y}")
+        if self.register[X] > self.register[Y]:
+            self.register[-1] = 1
+        else:
+            self.register[-1] = 0
+        self.register[X] = (self.register[X] - self.register[Y]) & 0xFF  # unsgined subtraction
 
     def op_8XY6(self):
-        # stores the least significant bit of VX in VF then right shifts VX by 1 (VX >> 1)
+        """Stores the least significant bit of VX in VF then right shifts
+        VX by 1 (VX >> 1)"""
         X = self.opcode[0] & 0x0F
         self.register[-1] = self.register[X] & 0x01  # VF is the last register
-        self.register[X] = self.register[X] >> 1
+        logging.debug(f"stores least significant bit in VF, then shits V{X} >> 1")
+        logging.debug(f"V{X} = {bin(self.register[X])}")
+        logging.debug(f"V{X} >> 1 = {bin((self.register[X] >> 1) & 0xFF)}")
+        self.register[X] = (self.register[X] >> 1) & 0xFF
 
     def op_8XY7(self):
-        # VX = VY - VX
-        # VX -= VY
+        """VX = VY - VX"""
         X = self.opcode[0] & 0x0F
-        Y = self.opcode[1] & 0xF0
-        self.register[X] = self.register[Y] - self.register[X]
+        Y = (self.opcode[1] & 0xF0) >> 4
+        if self.register[Y] > self.register[X]:
+            self.register[-1] = 1
+        else:
+            self.register[-1] = 0
+        logging.debug(f"V{X} = V{Y} - V{X}")
+        self.register[X] = (self.register[Y] - self.register[X]) & 0xFF
 
     def op_8XYE(self):
-        # stores the most significant bit of VX in VF and then left shifts VX by 1 (VX << 1)
+        """Stores the most significant bit of VX in VF and then left shifts
+        VX by 1 (VX << 1)"""
         X = self.opcode[0] & 0x0F
-        self.register[-1] = self.register[X] & 0x80  # VF is the last register
-        self.register[X] = self.register[X] << 1
+        self.register[-1] = (self.register[X] & 0x80) >> 7  # VF is the last register
+        logging.debug(f"stores most significant bit in VF, then left shits V{X} << 1")
+        logging.debug(f"V{X} = {bin(self.register[X])}")
+        logging.debug(f"V{X} << 1 = {bin((self.register[X] << 1) & 0xFF)}")
+        self.register[X] = (self.register[X] << 1) & 0xFF
 
     def op_9XY0(self):
-        # skip next instruction if VX does not equal VY
+        """skip next instruction if VX does not equal VY"""
         X = self.opcode[0] & 0x0F
-        Y = self.opcode[1] & 0xF0
+        Y = (self.opcode[1] & 0xF0) >> 4
         if self.register[X] != self.register[Y]:
             self.PC += 2
 
     def op_ANNN(self):
-        # sets the index_register to the address NNN
+        """Sets the index_register to the address NNN"""
         N = self.opcode[0] & 0x0F
         NN = self.opcode[1]
         NNN = format(N, "X") + format(NN, "X")  # converts to hex and concatenates
         self.index = int(NNN, 16)
+        logging.debug(f"setting index register to {self.index}")
 
     def op_BNNN(self):
-        # jumps to the address NNN plus V0
+        """Jumps to the address NNN plus V0"""
         N = self.opcode[0] & 0x0F
         NN = self.opcode[1]
         NNN = format(N, "X") + format(NN, "X")  # converts to hex and concatenates
         self.PC = NNN + self.register[0]
 
     def op_CXNN(self):
-        # sets VX to the bitwise and of a random number between 0 and 255 and NN
+        """Sets VX to the bitwise and of a random number between 0 and 255 and NN"""
         X = self.opcode[0] & 0x0F
+        random.seed(SEED)
         random_num = random.uniform(0, 255)
         self.register[X] &= random_num
 
@@ -177,8 +236,9 @@ class CPU:
         pass
 
     def op_FX07(self):
-        # sets VX to the value of the delay timer
+        """Sets VX to the value of the delay timer"""
         X = self.opcode[0] & 0x0F
+        logging.debug("setting V{X} to the value of the delay timer {self.delay_timer}")
         self.register[X] = self.delay_timer
 
     def op_FX0A(self):
@@ -187,19 +247,27 @@ class CPU:
         pass
 
     def op_FX15(self):
-        # sets delay timer to VX
+        """Sets delay timer to VX"""
         X = self.opcode[0] & 0x0F
+        logging.debug("setting delay timer to V{X} = {self.register[X]}")
         self.delay_timer = self.register[X]
 
     def op_FX18(self):
-        # sets sounds timer to VX
+        """Sets sounds timer to VX"""
         X = self.opcode[0] & 0x0F
         self.sound_timer = self.register[X]
 
     def op_FX1E(self):
         # adds VX to I. VF is set to 1 when there is a range overflow (I+VX > 0xFFF)
         # and to 0 when there isn't
-        pass
+        X = self.opcode[0] & 0x0F
+        logging.debug(f"I += V{X}")
+        if self.index + self.register[X] > 65535:
+            self.register[-1] = 1
+        else:
+            self.register[-1] = 0
+        self.index = (self.register[X] + self.index) & 0xFFFF
+        logging.debug(f"index = {self.index}")
 
     def op_FX29(self):
         # sets I to the location of the sprite for the character in VX. Characters
@@ -210,21 +278,117 @@ class CPU:
         # stores the BCD representation of VX, with the most significant of three
         # digits at the address in I, the middle digit at I+1, least significant
         # digit at I + 2.
-        pass
+        X = self.opcode[0] & 0x0F
+        logging.debug(f"storing BCD representation of V{X} in memory address {self.index}")
+        logging.debug(f"V{X} = {self.register[X]}")
+        for idx, i in enumerate(format(self.register[X], "0>3d")):
+            self.mem.memory[self.index+idx] = int(i)
+            logging.debug(f"storing {int(i)} in memory position {self.index+idx}")
+        logging.debug(f"memory: {self.mem.memory[self.index:self.index+3]}")
 
     def op_FX55(self):
         # stores V0 to VX(incliding VX) in memoy starting at address I. The offset
         # from I is increased by 1 fo reach value written, but I itself is left unmodified
-        pass
+        X = self.opcode[0] & 0x0F
+        logging.debug(f"index = {self.index}")
+        logging.debug(f"X = {X}")
+        for i in range(X+1):
+            logging.debug(f"storing V{i} in memory position {self.index+i}")
+            self.mem.memory[self.index+i] = self.register[i]
+        logging.debug(f"memory array: {self.mem.memory[self.index:self.index+X+1]}")
 
     def op_FX65(self):
         # fills VO to VX(including VX) with values from memory starting at address I
         # The offsite from I is increased by 1 for each value written, but I itself is left unmodified
-        pass
+        X = self.opcode[0] & 0x0F
+        logging.debug(f"folling V0 to V{X} with values from memory address {self.index}")
+        for i in range(X+1):
+            logging.debug(f"filling V{i} with value from memory position {self.index+i}")
+            self.register[i] = self.mem.memory[self.index+i]
+        logging.debug(f"memory array: {self.mem.memory[self.index:self.index+X+1]}")
 
     def cycle(self):
-        # joins both bytes to form the instruction
-        self.opcode = self.memory[self.PC : self.PC + 2]
+        # instructions are 2 bytes long
+        self.opcode = self.mem.memory[self.PC : self.PC + 2]
+        for i in self.opcode:
+            h = format(i, "02X")
+            logging.debug(f"opcode: {h}")
         self.PC += 2
-        ## DECODE
-        ## EXECUTE
+        logging.debug(f"PC: {hex(self.PC)}")
+        self.decode_and_execute()
+        self.dump_registers()
+        if self.delay_timer > 0:
+            self.delay_timer -= 1
+        if self.sound_timer > 0:
+            self.sound_timer -= 1
+
+    def decode_and_execute(self):
+        def resolve_last_nibble(nibble):
+            logging.debug(f"last nibble: {nibble}")
+            last_nibble_ops = {
+                0x00: self.op_8XY0,
+                0x01: self.op_8XY1,
+                0x02: self.op_8XY2,
+                0x03: self.op_8XY3,
+                0x04: self.op_8XY4,
+                0x05: self.op_8XY5,
+                0x06: self.op_8XY6,
+                0x07: self.op_8XY7,
+                0x0E: self.op_8XYE,
+            }
+            return last_nibble_ops[nibble]
+        def resolve_last_byte(byte):
+            logging.debug(f"last byte: {byte}")
+            last_byte_ops = {
+                0xA1: self.op_EXA1,
+                0x9E: self.op_EX9E,
+                0x07: self.op_FX07,
+                0x0A: self.op_FX0A,
+                0x15: self.op_FX15,
+                0x18: self.op_FX18,
+                0x1E: self.op_FX1E,
+                0x29: self.op_FX29,
+                0x33: self.op_FX33,
+                0x55: self.op_FX55,
+                0x65: self.op_FX65,
+            }
+            return last_byte_ops[byte]
+        def resolve_zero(nibble):
+            logging.debug(f"zero_nibble: {nibble}")
+            zero_ops = {
+                0x00: self.op_00E0,
+                0x0E: self.op_00EE
+            }
+            return zero_ops[nibble]
+
+        first_nibble = (self.opcode[0] & 0xF0) >> 4
+        last_nibble = self.opcode[1] & 0x0F
+        last_byte = self.opcode[1]
+        logging.debug(f"first_nibble: {first_nibble}")
+        operations = {
+            0x0: resolve_zero,
+            0x01: self.op_1NNN,
+            0x02: self.op_2NNN,
+            0x03: self.op_3XNN,
+            0x04: self.op_4XNN,
+            0x05: self.op_5XY0,
+            0x06: self.op_6XNN,
+            0x07: self.op_7XNN,
+            0x08: resolve_last_nibble,
+            0x09: self.op_9XY0,
+            0x0A: self.op_ANNN,
+            0x0B: self.op_BNNN,
+            0x0C: self.op_CXNN,
+            0x0D: self.op_DXYN,
+            0x0E: resolve_last_byte,
+            0x0F: resolve_last_byte,
+        }
+        if first_nibble in [0x00, 0x08]:
+            operations[first_nibble](last_nibble)()
+        elif first_nibble in [0x0E, 0x0F]:
+            operations[first_nibble](last_byte)()
+        else:
+            operations[first_nibble]()
+
+    def dump_registers(self):
+        logging.debug(self.register)

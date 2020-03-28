@@ -2,6 +2,9 @@ import pygame
 
 
 class Display:
+    black = (0, 0, 0)
+    white = (255, 255, 255)
+
     def __init__(self):
         self.width, self.height = 64, 32
         self.scaling = 10
@@ -10,19 +13,24 @@ class Display:
         )
         self.delay = 1000 // 60
         pygame.init()
-        self.start_rendering()
+        # self.start_rendering()
 
     def start_rendering(self):
         running = True
         while running:
-            pygame.time.wait(self.delay)  # 60Hz
+            # pygame.time.wait(self.delay)  # 60Hz
+            self.screen.fill(self.black)
+            pygame.display.update()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    pygame.display.quit()
-                    pygame.quit()
                     running = False
-            self.screen.fill((0, 0, 0))
-            pygame.display.update()
+                    pygame.display.quit()
+                    print("quit")
+                    break
+        pygame.quit()
 
     def set_caption(self, name: str) -> None:
         pygame.display.set_caption(name)
+
+
+d = Display()
