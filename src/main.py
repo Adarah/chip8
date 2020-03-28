@@ -7,7 +7,7 @@ from cpu import CPU
 class Chip8:
 
     def __init__(self):
-        self.mem = Memory('PONG')
+        self.mem = Memory('BC_test.ch8')
         self.disp = Display()
         self.cpu = CPU(self.mem, self.disp)
         self.init_keypad()

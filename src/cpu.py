@@ -3,12 +3,16 @@ import random
 from consts import SEED
 import logging
 
-logging.basicConfig(filename='CPU.log', level=logging.DEBUG, format='%(asctime)s:%(levelname)s:%(message)s')
+logging.basicConfig(
+    filename="CPU.log",
+    level=logging.DEBUG,
+    format="%(asctime)s:%(levelname)s:%(message)s",
+)
 
 
 class CPU:
     def __init__(self, memory, display):
-        logging.debug(f"NEW EXECUTION {'-'*80}")
+        logging.info(f"NEW EXECUTION {'-'*80}")
         self.mem = memory
         self.display = display
         self.register = [0] * 16  # general purpose registers (8 bits)
@@ -21,23 +25,25 @@ class CPU:
 
         while True:
             self.cycle()
-            logging.debug("#"*80)
+            logging.debug("#" * 80)
+
     # https://en.wikipedia.org/wiki/CHIP-8#Opcode_table
     def op_0NNN(self):
         # call to RCA 1802 program. Since we are not emulating that processor
-        # i will leave this blank
-        pass
+        # I will leave this blank
+        logging.critical("OP 0NNN called, this has not been implemented!")
 
     def op_00E0(self):
         """Clears the screen """
         # probably have to change the screen memory too
-        logging.debug("cleaning the screen")
+        logging.info("cleaning the screen")
         self.display.screen.fill((0, 0, 0))
 
     def op_00EE(self):
         """Return from subroutine"""
         logging.debug(f"stack pointer: {self.SP}")
         logging.debug(f"stack: {self.mem.stack}")
+        logging.info("returning from subroutine")
         self.SP -= 1
         self.PC = self.mem.stack[self.SP]
 
@@ -47,14 +53,14 @@ class CPU:
         NN = self.opcode[1]
         NNN = format(N, "X") + format(NN, "X")  # converts to hex and concatenates
         self.PC = int(NNN, 16)
-        logging.debug(f"PC set to address {NNN}")
+        logging.info(f"PC set to address {NNN}")
 
     def op_2NNN(self):
         """Call subroutine at NNN"""
         N = self.opcode[0] & 0x0F
         NN = self.opcode[1]
         NNN = format(N, "X") + format(NN, "X")  # converts to hex and concatenates
-        logging.debug(f"calling subroutine at {NNN}")
+        logging.info(f"calling subroutine at {NNN}")
         self.mem.stack[self.SP] = self.PC
         logging.debug(f"stored PC in stack position {self.SP}")
         self.SP += 1
@@ -65,7 +71,7 @@ class CPU:
         """Skip next instruction if VX equals NN"""
         X = self.opcode[0] & 0x0F
         NN = self.opcode[1]
-        logging.debug(f"skipping next instruction if V{X} == {NN}")
+        logging.info(f"skipping next instruction if V{X} == {NN}")
         if self.register[X] == NN:
             logging.debug("skipped!")
             self.PC += 2
@@ -74,7 +80,7 @@ class CPU:
         """Skips next instruction if Vx does not equal NN"""
         X = self.opcode[0] & 0x0F
         NN = self.opcode[1]
-        logging.debug(f"skipping next instruction if V{X} != {NN}")
+        logging.info(f"skipping next instruction if V{X} != {NN}")
         if self.register[X] != NN:
             logging.debug("skipped!")
             self.PC += 2
@@ -83,7 +89,7 @@ class CPU:
         """Skips next instruction if VX equals VY"""
         X = self.opcode[0] & 0x0F
         Y = (self.opcode[1] & 0xF0) >> 4
-        logging.debug(f"skipping next instruction if V{X} == V{Y}")
+        logging.info(f"skipping next instruction if V{X} == V{Y}")
         if self.register[X] == self.register[Y]:
             logging.debug("skipped!")
             self.PC += 2
@@ -92,28 +98,28 @@ class CPU:
         """Sets VX to NN"""
         X = self.opcode[0] & 0x0F
         NN = self.opcode[1]
-        logging.debug(f"setting V{X} to {NN}")
+        logging.info(f"setting V{X} to {NN}")
         self.register[X] = NN
 
     def op_7XNN(self):
         """Adds NN to VX"""
         X = self.opcode[0] & 0x0F
         NN = self.opcode[1]
-        logging.debug(f"V{X} = V{X} + {NN}")
+        logging.info(f"V{X} = V{X} + {NN}")
         self.register[X] += NN
 
     def op_8XY0(self):
         """Sets VX to the value of VY"""
         X = self.opcode[0] & 0x0F
         Y = (self.opcode[1] & 0xF0) >> 4
-        logging.debug(f"V{X} <= V{Y}")
+        logging.info(f"V{X} receives V{Y}")
         self.register[X] = self.register[Y]
 
     def op_8XY1(self):
         """Sets VX to the value of VX or VY (bitwise)"""
         X = self.opcode[0] & 0x0F
         Y = (self.opcode[1] & 0xF0) >> 4
-        logging.debug(f"V{X} = V{X} | V{Y}")
+        logging.info(f"V{X} = V{X} | V{Y}")
         logging.debug(f"V{X} = {bin(self.register[X])}")
         logging.debug(f"V{Y} = {bin(self.register[Y])}")
         self.register[X] |= self.register[Y]
@@ -122,7 +128,7 @@ class CPU:
         """Sets VX to the value of VX and VY (bitwise)"""
         X = self.opcode[0] & 0x0F
         Y = (self.opcode[1] & 0xF0) >> 4
-        logging.debug(f"V{X} = V{X} & V{Y}")
+        logging.info(f"V{X} = V{X} & V{Y}")
         logging.debug(f"V{X} = {bin(self.register[X])}")
         logging.debug(f"V{Y} = {bin(self.register[Y])}")
         self.register[X] &= self.register[Y]
@@ -131,7 +137,7 @@ class CPU:
         """Sets VX to the value of VX xor VY (bitwse)"""
         X = self.opcode[0] & 0x0F
         Y = (self.opcode[1] & 0xF0) >> 4
-        logging.debug(f"V{X} = V{X} ^ V{Y}")
+        logging.info(f"V{X} = V{X} ^ V{Y}")
         logging.debug(f"V{X} = {bin(self.register[X])}")
         logging.debug(f"V{Y} = {bin(self.register[Y])}")
         self.register[X] ^= self.register[Y]
@@ -141,6 +147,7 @@ class CPU:
         X = self.opcode[0] & 0x0F
         Y = (self.opcode[1] & 0xF0) >> 4
         addition = self.register[X] + self.register[Y]
+        logging.info(f"V{X} += V{Y}")
         if addition > 255:
             self.register[-1] = 1
         else:
@@ -151,12 +158,14 @@ class CPU:
         """VX -= VY"""
         X = self.opcode[0] & 0x0F
         Y = (self.opcode[1] & 0xF0) >> 4
-        logging.debug(f"V{X} -= V{Y}")
+        logging.info(f"V{X} -= V{Y}")
         if self.register[X] > self.register[Y]:
             self.register[-1] = 1
         else:
             self.register[-1] = 0
-        self.register[X] = (self.register[X] - self.register[Y]) & 0xFF  # unsgined subtraction
+        self.register[X] = (
+            self.register[X] - self.register[Y]
+        ) & 0xFF  # unsgined subtraction
 
     def op_8XY6(self):
         """Stores the least significant bit of VX in VF then right shifts
@@ -184,7 +193,7 @@ class CPU:
         VX by 1 (VX << 1)"""
         X = self.opcode[0] & 0x0F
         self.register[-1] = (self.register[X] & 0x80) >> 7  # VF is the last register
-        logging.debug(f"stores most significant bit in VF, then left shits V{X} << 1")
+        logging.info(f"stores most significant bit in VF, then left shits V{X} << 1")
         logging.debug(f"V{X} = {bin(self.register[X])}")
         logging.debug(f"V{X} << 1 = {bin((self.register[X] << 1) & 0xFF)}")
         self.register[X] = (self.register[X] << 1) & 0xFF
@@ -193,7 +202,9 @@ class CPU:
         """skip next instruction if VX does not equal VY"""
         X = self.opcode[0] & 0x0F
         Y = (self.opcode[1] & 0xF0) >> 4
+        logging.info(f"skip next instruction if V{X} != V{Y}")
         if self.register[X] != self.register[Y]:
+            logging.debug("skipped!")
             self.PC += 2
 
     def op_ANNN(self):
@@ -202,20 +213,24 @@ class CPU:
         NN = self.opcode[1]
         NNN = format(N, "X") + format(NN, "X")  # converts to hex and concatenates
         self.index = int(NNN, 16)
-        logging.debug(f"setting index register to {self.index}")
+        logging.info(f"setting index register to {self.index}")
 
     def op_BNNN(self):
         """Jumps to the address NNN plus V0"""
         N = self.opcode[0] & 0x0F
         NN = self.opcode[1]
         NNN = format(N, "X") + format(NN, "X")  # converts to hex and concatenates
+        logging.info(f"setting PC to address {NNN} + V0 ({self.register[0]})")
         self.PC = NNN + self.register[0]
 
     def op_CXNN(self):
         """Sets VX to the bitwise and of a random number between 0 and 255 and NN"""
         X = self.opcode[0] & 0x0F
         random.seed(SEED)
-        random_num = random.uniform(0, 255)
+        random_num = random.randint(0, 255)
+        logging.info(f"setting V{X} to V{X} & random number {random_num}")
+        logging.debug(f"V{X} = {bin(self.register[X])}")
+        logging.debug(f"random_num = {bin(int(random_num))}")
         self.register[X] &= random_num
 
     def op_DXYN(self):
@@ -225,7 +240,27 @@ class CPU:
         # As described above, VF is set to 1 if any screen pixels are flipped
         # from set to unset when the sprite is drawn, and to 0 if that doesn’t happen
         # in other words, VF = 1 if collisions happened
-        pass
+        X = self.opcode[0] & 0x0F
+        Y = (self.opcode[1] & 0xF0) >> 4
+        N = self.opcode[1] & 0x0F  # height
+        x_reg = self.register[X]
+        y_reg = self.register[Y]
+        logging.info(f"drawing at position {x_reg}, {y_reg}")
+        logging.debug(f"index is at {self.index}")
+        for height in range(0, N):
+            sprite_line = self.mem.memory[self.index + height]
+            for width in range(0, 8):
+                # print(f"x_pos: {x_pos}")
+                # print(f"y_pos: {y_pos}")
+                # print(f"current: {(y_pos + height) * 64 + (x_pos + width)}")
+                x_coord = (x_reg + width) % 64
+                y_coord = (y_reg + height) % 32
+                screen_pixel = self.display.video[y_coord * 64 + x_coord]
+                if sprite_line:
+                    if screen_pixel:  # collision happened
+                        self.register[-1] = 1
+                self.display.video[y_coord * 64 + x_coord] ^= (sprite_line & 2**width)
+        self.display.draw_pixels()
 
     def op_EX9E(self):
         # skips next instruction if key stored in VX is pressed
@@ -238,7 +273,7 @@ class CPU:
     def op_FX07(self):
         """Sets VX to the value of the delay timer"""
         X = self.opcode[0] & 0x0F
-        logging.debug("setting V{X} to the value of the delay timer {self.delay_timer}")
+        logging.info("setting V{X} to the value of the delay timer {self.delay_timer}")
         self.register[X] = self.delay_timer
 
     def op_FX0A(self):
@@ -249,19 +284,21 @@ class CPU:
     def op_FX15(self):
         """Sets delay timer to VX"""
         X = self.opcode[0] & 0x0F
-        logging.debug("setting delay timer to V{X} = {self.register[X]}")
+        logging.info("setting delay timer to V{X} = {self.register[X]}")
         self.delay_timer = self.register[X]
 
     def op_FX18(self):
         """Sets sounds timer to VX"""
         X = self.opcode[0] & 0x0F
+        logging.info("setting sound timer to V{X}")
         self.sound_timer = self.register[X]
 
     def op_FX1E(self):
         # adds VX to I. VF is set to 1 when there is a range overflow (I+VX > 0xFFF)
         # and to 0 when there isn't
         X = self.opcode[0] & 0x0F
-        logging.debug(f"I += V{X}")
+        logging.info(f"I += V{X}")
+        logging.debug(f"index = {self.index}")
         if self.index + self.register[X] > 65535:
             self.register[-1] = 1
         else:
@@ -272,17 +309,24 @@ class CPU:
     def op_FX29(self):
         # sets I to the location of the sprite for the character in VX. Characters
         # 0-F(hex) are represented by a 4x5 font
-        pass
+        X = self.opcode[0] & 0x0F
+        logging.info(f"setting index to the position of the character in V{X}")
+        value = self.register[X] & 0x0F
+        self.index = 0x50 + value
+        logging.debug(f"index = {self.index}")
+
 
     def op_FX33(self):
         # stores the BCD representation of VX, with the most significant of three
         # digits at the address in I, the middle digit at I+1, least significant
         # digit at I + 2.
         X = self.opcode[0] & 0x0F
-        logging.debug(f"storing BCD representation of V{X} in memory address {self.index}")
+        logging.info(
+            f"storing BCD representation of V{X} in memory address {self.index}"
+        )
         logging.debug(f"V{X} = {self.register[X]}")
         for idx, i in enumerate(format(self.register[X], "0>3d")):
-            self.mem.memory[self.index+idx] = int(i)
+            self.mem.memory[self.index + idx] = int(i)
             logging.debug(f"storing {int(i)} in memory position {self.index+idx}")
         logging.debug(f"memory: {self.mem.memory[self.index:self.index+3]}")
 
@@ -292,19 +336,21 @@ class CPU:
         X = self.opcode[0] & 0x0F
         logging.debug(f"index = {self.index}")
         logging.debug(f"X = {X}")
-        for i in range(X+1):
-            logging.debug(f"storing V{i} in memory position {self.index+i}")
-            self.mem.memory[self.index+i] = self.register[i]
+        for i in range(X + 1):
+            logging.info(f"storing V{i} in memory position {self.index+i}")
+            self.mem.memory[self.index + i] = self.register[i]
         logging.debug(f"memory array: {self.mem.memory[self.index:self.index+X+1]}")
 
     def op_FX65(self):
         # fills VO to VX(including VX) with values from memory starting at address I
         # The offsite from I is increased by 1 for each value written, but I itself is left unmodified
         X = self.opcode[0] & 0x0F
-        logging.debug(f"folling V0 to V{X} with values from memory address {self.index}")
-        for i in range(X+1):
-            logging.debug(f"filling V{i} with value from memory position {self.index+i}")
-            self.register[i] = self.mem.memory[self.index+i]
+        logging.info(f"filling V0 to V{X} with values from memory address {self.index}")
+        for i in range(X + 1):
+            logging.debug(
+                f"filling V{i} with value from memory position {self.index+i}"
+            )
+            self.register[i] = self.mem.memory[self.index + i]
         logging.debug(f"memory array: {self.mem.memory[self.index:self.index+X+1]}")
 
     def cycle(self):
@@ -316,7 +362,7 @@ class CPU:
         self.PC += 2
         logging.debug(f"PC: {hex(self.PC)}")
         self.decode_and_execute()
-        self.dump_registers()
+        logging.debug(f"registers: {self.register}")
         if self.delay_timer > 0:
             self.delay_timer -= 1
         if self.sound_timer > 0:
@@ -337,6 +383,7 @@ class CPU:
                 0x0E: self.op_8XYE,
             }
             return last_nibble_ops[nibble]
+
         def resolve_last_byte(byte):
             logging.debug(f"last byte: {byte}")
             last_byte_ops = {
@@ -353,12 +400,10 @@ class CPU:
                 0x65: self.op_FX65,
             }
             return last_byte_ops[byte]
+
         def resolve_zero(nibble):
             logging.debug(f"zero_nibble: {nibble}")
-            zero_ops = {
-                0x00: self.op_00E0,
-                0x0E: self.op_00EE
-            }
+            zero_ops = {0x00: self.op_00E0, 0x0E: self.op_00EE}
             return zero_ops[nibble]
 
         first_nibble = (self.opcode[0] & 0xF0) >> 4
@@ -389,6 +434,3 @@ class CPU:
             operations[first_nibble](last_byte)()
         else:
             operations[first_nibble]()
-
-    def dump_registers(self):
-        logging.debug(self.register)
