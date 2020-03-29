@@ -19,7 +19,7 @@ class Memory:
             for byte in iter(lambda: f.read(1), b""):
                 self.memory[address] = int.from_bytes(byte, "big")
                 address += 1
-        print(self.memory[0x200:0x200+81])
+        # print(self.memory[0x200:0x200+81])
 
     def load_fonts(self):
         # some programs expect fonts to be in the memory position $50

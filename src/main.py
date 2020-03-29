@@ -1,29 +1,24 @@
+import pygame
 from os import path
 from memory import Memory
-from display import Display
+from display import DisplayAndKeyboard
 from cpu import CPU
+from time import sleep
 
 
 class Chip8:
 
     def __init__(self):
-        self.mem = Memory('BC_test.ch8')
-        self.disp = Display()
-        self.cpu = CPU(self.mem, self.disp)
-        self.init_keypad()
+        self.mem = Memory('TICTAC')
+        self.dspkb = DisplayAndKeyboard()
+        keymap = self.dspkb.init_keypad()
+        self.cpu = CPU(self.mem, self.dspkb, keymap)
         while True:
-            pass
+            sleep(0.002)
+            self.cpu.cycle()
 
 
-    @classmethod
-    def init_keypad(cls):
-        return [1, 2, 3, 4, "q", "w", "e", "r", "a", "s", "d", "f", "z", "x", "c", "v"]
 
 
 
 c = Chip8()
-# c.mem.load_rom(file_path)
-# print(c.PC)
-# # print(c.memory[START_ADDRESS:])
-# print(c.keypad)
-# print(c.mem.memory[0x50: 0x50 + 81])

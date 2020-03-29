@@ -1,7 +1,9 @@
+import pygame
 from consts import START_ADDRESS
 import random
-from consts import SEED
+from consts import SEED, pygame_keymap
 import logging
+from time import sleep, time
 
 logging.basicConfig(
     filename="CPU.log",
@@ -11,10 +13,10 @@ logging.basicConfig(
 
 
 class CPU:
-    def __init__(self, memory, display):
-        logging.info(f"NEW EXECUTION {'-'*80}")
+    def __init__(self, memory, display_and_keyboard, keymapping):
         self.mem = memory
-        self.display = display
+        self.dspkb = display_and_keyboard  # display and keyboard
+        self.keymap = keymapping
         self.register = [0] * 16  # general purpose registers (8 bits)
         self.index = 0  # index register  (16 bits)
         self.PC = START_ADDRESS  # program counter  (16 bits)
@@ -22,22 +24,27 @@ class CPU:
         self.delay_timer = 0
         self.sound_timer = 0
         self.opcode = 0
+        self.pressed_keys = [0] * 16
 
-        while True:
-            self.cycle()
-            logging.debug("#" * 80)
+        logging.debug(f"NEW EXECUTION {'-'*200}")
 
     # https://en.wikipedia.org/wiki/CHIP-8#Opcode_table
     def op_0NNN(self):
         # call to RCA 1802 program. Since we are not emulating that processor
         # I will leave this blank
         logging.critical("OP 0NNN called, this has not been implemented!")
+        raise Exception(
+            "Tried to execute operation that has not been implemented. Opcode = {}".format(
+                format(self.opcode[0], "02X") + format(self.opcode[1], "02X")
+            )
+        )
 
     def op_00E0(self):
         """Clears the screen """
         # probably have to change the screen memory too
         logging.info("cleaning the screen")
-        self.display.screen.fill((0, 0, 0))
+        self.dspkb.video = [0] * 64 * 32
+        self.dspkb.update()
 
     def op_00EE(self):
         """Return from subroutine"""
@@ -51,15 +58,15 @@ class CPU:
         """Jump to addres NNN"""
         N = self.opcode[0] & 0x0F
         NN = self.opcode[1]
-        NNN = format(N, "X") + format(NN, "X")  # converts to hex and concatenates
+        NNN = format(N, "X") + format(NN, "02X")  # converts to hex and concatenates
         self.PC = int(NNN, 16)
-        logging.info(f"PC set to address {NNN}")
+        logging.info(f"PC set to address {format(self.PC, '02X')}")
 
     def op_2NNN(self):
         """Call subroutine at NNN"""
         N = self.opcode[0] & 0x0F
         NN = self.opcode[1]
-        NNN = format(N, "X") + format(NN, "X")  # converts to hex and concatenates
+        NNN = format(N, "X") + format(NN, "02X")  # converts to hex and concatenates
         logging.info(f"calling subroutine at {NNN}")
         self.mem.stack[self.SP] = self.PC
         logging.debug(f"stored PC in stack position {self.SP}")
@@ -106,7 +113,11 @@ class CPU:
         X = self.opcode[0] & 0x0F
         NN = self.opcode[1]
         logging.info(f"V{X} = V{X} + {NN}")
-        self.register[X] += NN
+        if self.register[X] + NN > 255:
+            self.register[-1] = 1
+        else:
+            self.register[-1] = 0
+        self.register[X] = (self.register[X] + NN) & 0xFF
 
     def op_8XY0(self):
         """Sets VX to the value of VY"""
@@ -211,15 +222,15 @@ class CPU:
         """Sets the index_register to the address NNN"""
         N = self.opcode[0] & 0x0F
         NN = self.opcode[1]
-        NNN = format(N, "X") + format(NN, "X")  # converts to hex and concatenates
+        NNN = format(N, "02X") + format(NN, "02X")  # converts to hex and concatenates
         self.index = int(NNN, 16)
-        logging.info(f"setting index register to {self.index}")
+        logging.info(f"setting index register to {format(self.index, '02x')}")
 
     def op_BNNN(self):
         """Jumps to the address NNN plus V0"""
         N = self.opcode[0] & 0x0F
         NN = self.opcode[1]
-        NNN = format(N, "X") + format(NN, "X")  # converts to hex and concatenates
+        NNN = format(N, "X") + format(NN, "02X")  # converts to hex and concatenates
         logging.info(f"setting PC to address {NNN} + V0 ({self.register[0]})")
         self.PC = NNN + self.register[0]
 
@@ -246,29 +257,38 @@ class CPU:
         x_reg = self.register[X]
         y_reg = self.register[Y]
         logging.info(f"drawing at position {x_reg}, {y_reg}")
-        logging.debug(f"index is at {self.index}")
+        logging.debug(f"index is at {format(self.index, '02X')}")
+        logging.debug(f"index: {self.mem.memory[self.index: self.index+10]}")
         for height in range(0, N):
             sprite_line = self.mem.memory[self.index + height]
-            for width in range(0, 8):
-                # print(f"x_pos: {x_pos}")
-                # print(f"y_pos: {y_pos}")
-                # print(f"current: {(y_pos + height) * 64 + (x_pos + width)}")
+            for width in range(8):
                 x_coord = (x_reg + width) % 64
                 y_coord = (y_reg + height) % 32
-                screen_pixel = self.display.video[y_coord * 64 + x_coord]
-                if sprite_line:
+                screen_pixel = self.dspkb.video[(y_coord * 64 + x_coord) - 1]
+                mask = 1 << (8 - width)
+                if sprite_line & mask:
                     if screen_pixel:  # collision happened
                         self.register[-1] = 1
-                self.display.video[y_coord * 64 + x_coord] ^= (sprite_line & 2**width)
-        self.display.draw_pixels()
+                # XORing screen pixels with the bits in sprite_line. each bit in sprite_line is a sprite pixel
+                self.dspkb.video[(y_coord * 64 + x_coord) - 1] ^= sprite_line & mask
+        self.dspkb.draw_pixels()
 
     def op_EX9E(self):
         # skips next instruction if key stored in VX is pressed
-        pass
+        X = self.opcode[0] & 0x0F
+        key_to_be_checked = pygame_keymap[self.register[X]]
+        pygame.event.pump()
+        keys = pygame.key.get_pressed()
+        if keys[key_to_be_checked]:
+            self.PC += 2
 
     def op_EXA1(self):
-        # skips next instruction if key stred in VX is NOT pressed
-        pass
+        X = self.opcode[0] & 0x0F
+        key_to_be_checked = pygame_keymap[self.register[X]]
+        pygame.event.pump()
+        keys = pygame.key.get_pressed()
+        if not keys[key_to_be_checked]:
+            self.PC += 2
 
     def op_FX07(self):
         """Sets VX to the value of the delay timer"""
@@ -279,7 +299,17 @@ class CPU:
     def op_FX0A(self):
         # A key press is awaited, and then stored in VX.
         # (Blocking Operation. All instruction halted until next key event)
-        pass
+        X = self.opcode[0] & 0x0F
+        while True:
+            event = pygame.event.wait()
+            if event.type == pygame.KEYDOWN:
+                try:
+                    key = self.keymap[event.unicode]
+                    break
+
+                except Exception:
+                    logging.debug("unknown key pressed")
+        self.register[X] = key
 
     def op_FX15(self):
         """Sets delay timer to VX"""
@@ -312,9 +342,8 @@ class CPU:
         X = self.opcode[0] & 0x0F
         logging.info(f"setting index to the position of the character in V{X}")
         value = self.register[X] & 0x0F
-        self.index = 0x50 + value
+        self.index = 0x50 + value * 5
         logging.debug(f"index = {self.index}")
-
 
     def op_FX33(self):
         # stores the BCD representation of VX, with the most significant of three
@@ -336,6 +365,7 @@ class CPU:
         X = self.opcode[0] & 0x0F
         logging.debug(f"index = {self.index}")
         logging.debug(f"X = {X}")
+        logging.debug(f"registers: {self.register}")
         for i in range(X + 1):
             logging.info(f"storing V{i} in memory position {self.index+i}")
             self.mem.memory[self.index + i] = self.register[i]
@@ -401,10 +431,13 @@ class CPU:
             }
             return last_byte_ops[byte]
 
-        def resolve_zero(nibble):
-            logging.debug(f"zero_nibble: {nibble}")
-            zero_ops = {0x00: self.op_00E0, 0x0E: self.op_00EE}
-            return zero_ops[nibble]
+        def resolve_zero(byte):
+            logging.debug(f"zero_byte: {byte}")
+            zero_ops = {0xE0: self.op_00E0, 0xEE: self.op_00EE}
+            try:
+                return zero_ops[byte]
+            except Exception:
+                return self.op_0NNN
 
         first_nibble = (self.opcode[0] & 0xF0) >> 4
         last_nibble = self.opcode[1] & 0x0F
@@ -428,9 +461,9 @@ class CPU:
             0x0E: resolve_last_byte,
             0x0F: resolve_last_byte,
         }
-        if first_nibble in [0x00, 0x08]:
+        if first_nibble == 0x08:
             operations[first_nibble](last_nibble)()
-        elif first_nibble in [0x0E, 0x0F]:
+        elif first_nibble in [0x00, 0x0E, 0x0F]:
             operations[first_nibble](last_byte)()
         else:
             operations[first_nibble]()
