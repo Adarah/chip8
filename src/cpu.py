@@ -109,14 +109,10 @@ class CPU:
         self.register[X] = NN
 
     def op_7XNN(self):
-        """Adds NN to VX"""
+        """Adds NN to VX. Does not set the VF flag even if a carry happens"""
         X = self.opcode[0] & 0x0F
         NN = self.opcode[1]
         logging.info(f"V{X} = V{X} + {NN}")
-        if self.register[X] + NN > 255:
-            self.register[-1] = 1
-        else:
-            self.register[-1] = 0
         self.register[X] = (self.register[X] + NN) & 0xFF
 
     def op_8XY0(self):
@@ -170,7 +166,7 @@ class CPU:
         X = self.opcode[0] & 0x0F
         Y = (self.opcode[1] & 0xF0) >> 4
         logging.info(f"V{X} -= V{Y}")
-        if self.register[X] > self.register[Y]:
+        if self.register[X] >= self.register[Y]:
             self.register[-1] = 1
         else:
             self.register[-1] = 0
@@ -192,7 +188,7 @@ class CPU:
         """VX = VY - VX"""
         X = self.opcode[0] & 0x0F
         Y = (self.opcode[1] & 0xF0) >> 4
-        if self.register[Y] > self.register[X]:
+        if self.register[Y] >= self.register[X]:
             self.register[-1] = 1
         else:
             self.register[-1] = 0
@@ -232,17 +228,17 @@ class CPU:
         NN = self.opcode[1]
         NNN = format(N, "X") + format(NN, "02X")  # converts to hex and concatenates
         logging.info(f"setting PC to address {NNN} + V0 ({self.register[0]})")
-        self.PC = NNN + self.register[0]
+        self.PC = int(NNN, 16) + self.register[0]
 
     def op_CXNN(self):
         """Sets VX to the bitwise and of a random number between 0 and 255 and NN"""
         X = self.opcode[0] & 0x0F
-        random.seed(SEED)
+        NN = self.opcode[1]
         random_num = random.randint(0, 255)
         logging.info(f"setting V{X} to V{X} & random number {random_num}")
         logging.debug(f"V{X} = {bin(self.register[X])}")
         logging.debug(f"random_num = {bin(int(random_num))}")
-        self.register[X] &= random_num
+        self.register[X] = random_num & NN
 
     def op_DXYN(self):
         # draws a sprite at coordinates (VX, VY) that has a width of 8 pixels and a height of N pixels.
@@ -251,6 +247,7 @@ class CPU:
         # As described above, VF is set to 1 if any screen pixels are flipped
         # from set to unset when the sprite is drawn, and to 0 if that doesn’t happen
         # in other words, VF = 1 if collisions happened
+        self.register[-1] = 0
         X = self.opcode[0] & 0x0F
         Y = (self.opcode[1] & 0xF0) >> 4
         N = self.opcode[1] & 0x0F  # height
@@ -258,19 +255,19 @@ class CPU:
         y_reg = self.register[Y]
         logging.info(f"drawing at position {x_reg}, {y_reg}")
         logging.debug(f"index is at {format(self.index, '02X')}")
-        logging.debug(f"index: {self.mem.memory[self.index: self.index+10]}")
+        logging.debug(f"index: {self.mem.memory[self.index: self.index+N]}")
         for height in range(0, N):
             sprite_line = self.mem.memory[self.index + height]
             for width in range(8):
                 x_coord = (x_reg + width) % 64
                 y_coord = (y_reg + height) % 32
-                screen_pixel = self.dspkb.video[(y_coord * 64 + x_coord) - 1]
-                mask = 1 << (8 - width)
+                screen_pixel = self.dspkb.video[(y_coord * 64 + x_coord)]
+                mask = 1 << (7 - width)
                 if sprite_line & mask:
                     if screen_pixel:  # collision happened
                         self.register[-1] = 1
                 # XORing screen pixels with the bits in sprite_line. each bit in sprite_line is a sprite pixel
-                self.dspkb.video[(y_coord * 64 + x_coord) - 1] ^= sprite_line & mask
+                self.dspkb.video[(y_coord * 64 + x_coord)] ^= (sprite_line & mask) >> (7 - width)
         self.dspkb.draw_pixels()
 
     def op_EX9E(self):
@@ -300,21 +297,20 @@ class CPU:
         # A key press is awaited, and then stored in VX.
         # (Blocking Operation. All instruction halted until next key event)
         X = self.opcode[0] & 0x0F
-        while True:
-            event = pygame.event.wait()
-            if event.type == pygame.KEYDOWN:
-                try:
+        key_pressed = False
+        while not key_pressed:
+            # event = pygame.event.wait()
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.unicode in self.keymap.keys():
                     key = self.keymap[event.unicode]
+                    key_pressed = True
                     break
-
-                except Exception:
-                    logging.debug("unknown key pressed")
         self.register[X] = key
 
     def op_FX15(self):
         """Sets delay timer to VX"""
         X = self.opcode[0] & 0x0F
-        logging.info("setting delay timer to V{X} = {self.register[X]}")
+        logging.info(f"setting delay timer to V{X} = {self.register[X]}")
         self.delay_timer = self.register[X]
 
     def op_FX18(self):
@@ -393,10 +389,6 @@ class CPU:
         logging.debug(f"PC: {hex(self.PC)}")
         self.decode_and_execute()
         logging.debug(f"registers: {self.register}")
-        if self.delay_timer > 0:
-            self.delay_timer -= 1
-        if self.sound_timer > 0:
-            self.sound_timer -= 1
 
     def decode_and_execute(self):
         def resolve_last_nibble(nibble):
