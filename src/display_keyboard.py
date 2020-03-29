@@ -4,6 +4,7 @@ from time import sleep
 
 class DisplayAndKeyboard:
     black = (0, 0, 0)
+    green = (0, 255, 0)
     white = (255, 255, 255)
 
     def __init__(self):
@@ -42,7 +43,7 @@ class DisplayAndKeyboard:
                 if self.video[row + col * 64] != 0:
                     pygame.draw.rect(
                         self.screen,
-                        DisplayAndKeyboard.white,
+                        DisplayAndKeyboard.green,
                         [
                             row * self.scaling,
                             col * self.scaling,

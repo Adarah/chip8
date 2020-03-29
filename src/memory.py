@@ -1,5 +1,6 @@
-from consts import START_ADDRESS
 from os import path
+
+from consts import START_ADDRESS
 
 
 class Memory:
@@ -11,15 +12,12 @@ class Memory:
 
     def load_rom(self, file):
         # files should be in big-endian format
-        data = []
-        base_path = path.dirname("main.py")
         file_path = path.abspath(path.join("..", "c8games", file))
         with open(file_path, "rb") as f:
             address = START_ADDRESS
             for byte in iter(lambda: f.read(1), b""):
                 self.memory[address] = int.from_bytes(byte, "big")
                 address += 1
-        # print(self.memory[0x200:0x200+81])
 
     def load_fonts(self):
         # some programs expect fonts to be in the memory position $50

@@ -1,13 +1,13 @@
-import pygame
-from consts import START_ADDRESS
-import random
-from consts import SEED, pygame_keymap
 import logging
-from time import sleep, time
+import random
+
+import pygame
+
+from consts import START_ADDRESS, pygame_keymap
 
 logging.basicConfig(
     filename="CPU.log",
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s:%(levelname)s:%(message)s",
 )
 
@@ -267,7 +267,9 @@ class CPU:
                     if screen_pixel:  # collision happened
                         self.register[-1] = 1
                 # XORing screen pixels with the bits in sprite_line. each bit in sprite_line is a sprite pixel
-                self.dspkb.video[(y_coord * 64 + x_coord)] ^= (sprite_line & mask) >> (7 - width)
+                self.dspkb.video[(y_coord * 64 + x_coord)] ^= (sprite_line & mask) >> (
+                    7 - width
+                )
         self.dspkb.draw_pixels()
 
     def op_EX9E(self):
@@ -290,7 +292,7 @@ class CPU:
     def op_FX07(self):
         """Sets VX to the value of the delay timer"""
         X = self.opcode[0] & 0x0F
-        logging.info("setting V{X} to the value of the delay timer {self.delay_timer}")
+        logging.info(f"setting V{X} to the value of the delay timer {self.delay_timer}")
         self.register[X] = self.delay_timer
 
     def op_FX0A(self):
@@ -381,7 +383,7 @@ class CPU:
 
     def cycle(self):
         # instructions are 2 bytes long
-        self.opcode = self.mem.memory[self.PC : self.PC + 2]
+        self.opcode = self.mem.memory[self.PC: self.PC + 2]
         for i in self.opcode:
             h = format(i, "02X")
             logging.debug(f"opcode: {h}")

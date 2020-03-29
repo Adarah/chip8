@@ -1,9 +1,11 @@
 from time import time
+import random
 import pygame
 
 SEED = int(time())
+random.seed(SEED)
 START_ADDRESS = 0x200
-DEBUG = True
+DEBUG = False
 
 if DEBUG:
     SEED = 0

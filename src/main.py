@@ -1,17 +1,17 @@
+from time import time
 
 import pygame
-from os import path
-from memory import Memory
-from display import DisplayAndKeyboard
-from cpu import CPU
-from time import sleep, time
 
-tone = pygame.mixer.Sound('sfx_exp_shortest_soft9.wav')
+from cpu import CPU
+from display_keyboard import DisplayAndKeyboard
+from memory import Memory
+
+tone = pygame.mixer.Sound("sfx_sounds_button6.wav")
+
 
 class Chip8:
-
     def __init__(self):
-        self.mem = Memory('TETRIS')
+        self.mem = Memory("BRIX")
         self.dspkb = DisplayAndKeyboard()
         keymap = self.dspkb.init_keypad()
         self.cpu = CPU(self.mem, self.dspkb, keymap)
@@ -26,9 +26,6 @@ class Chip8:
                     self.cpu.sound_timer -= 1
                     tone.play()
                 tick = time()
-
-
-
 
 
 c = Chip8()
