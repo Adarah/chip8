@@ -1,5 +1,4 @@
 import pygame
-from time import sleep
 
 
 class DisplayAndKeyboard:
@@ -9,38 +8,22 @@ class DisplayAndKeyboard:
 
     def __init__(self):
         self.width, self.height = 64, 32
-        self.video = [0] * 64 * 32
+        self.video = [0] * self.width * self.height
+        self.video_buffer = [0] * self.width * self.height
         self.scaling = 20
         self.screen = pygame.display.set_mode(
             (self.width * self.scaling, self.height * self.scaling)
         )
-        self.delay = 1000 // 60
-        pygame.init()
-        # self.start_rendering()
-
-    def start_rendering(self):
-        running = True
-        while running:
-            # pygame.time.wait(self.delay)  # 60Hz
-            event = pygame.event.wait()
-            if event.type == pygame.QUIT:
-                running = False
-                pygame.display.quit()
-                print("quit")
-                break
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_f:
-                    self.draw_pixels()
-        pygame.quit()
+        self.kb_to_hex = self.keyboard_to_hex()
+        self.hex_to_pygame = self.hex_to_pygame_keys()
 
     def set_caption(self, name: str) -> None:
         pygame.display.set_caption(name)
 
     def draw_pixels(self):
-        pygame.display.flip()
-        for row in range(64):
-            for col in range(32):
-                if self.video[row + col * 64] != 0:
+        for row in range(self.width):
+            for col in range(self.height):
+                if (self.video[row + col * self.width] != 0 or self.video_buffer[row + col * self.width] != 0):
                     pygame.draw.rect(
                         self.screen,
                         DisplayAndKeyboard.green,
@@ -67,29 +50,46 @@ class DisplayAndKeyboard:
     def update(self):
         pygame.display.flip()
 
-
     @classmethod
-    def init_keypad(cls):
+    def keyboard_to_hex(cls):
         mapping = {
-            '1': 0x01,
-            '2': 0x02,
-            '3': 0x03,
-            '4': 0x0C,
-            'q': 0x04,
-            'w': 0x05,
-            'e': 0x06,
-            'r': 0x0D,
-            'a': 0x07,
-            's': 0x08,
-            'd': 0x09,
-            'f': 0x0E,
-            'z': 0x0A,
-            'x': 0x00,
-            'c': 0x0B,
-            'v': 0x0F,
+            "1": 0x01,
+            "2": 0x02,
+            "3": 0x03,
+            "4": 0x0C,
+            "q": 0x04,
+            "w": 0x05,
+            "e": 0x06,
+            "r": 0x0D,
+            "a": 0x07,
+            "s": 0x08,
+            "d": 0x09,
+            "f": 0x0E,
+            "z": 0x0A,
+            "x": 0x00,
+            "c": 0x0B,
+            "v": 0x0F,
         }
         return mapping
 
-
-
-d = DisplayAndKeyboard()
+    @classmethod
+    def hex_to_pygame_keys(cls):
+        pygame_keymap = {
+            0x0: pygame.K_x,
+            0x1: pygame.K_1,
+            0x2: pygame.K_2,
+            0x3: pygame.K_3,
+            0x4: pygame.K_q,
+            0x5: pygame.K_w,
+            0x6: pygame.K_e,
+            0x7: pygame.K_a,
+            0x8: pygame.K_s,
+            0x9: pygame.K_d,
+            0xA: pygame.K_z,
+            0xB: pygame.K_c,
+            0xC: pygame.K_4,
+            0xD: pygame.K_r,
+            0xE: pygame.K_f,
+            0xF: pygame.K_v,
+        }
+        return pygame_keymap

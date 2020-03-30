@@ -1,9 +1,9 @@
 import logging
 import random
+import copy
 
 import pygame
 
-from consts import START_ADDRESS, pygame_keymap
 
 logging.basicConfig(
     filename="CPU.log",
@@ -13,13 +13,13 @@ logging.basicConfig(
 
 
 class CPU:
-    def __init__(self, memory, display_and_keyboard, keymapping):
+    def __init__(self, memory, display_and_keyboard):
         self.mem = memory
         self.dspkb = display_and_keyboard  # display and keyboard
-        self.keymap = keymapping
+        self.kb_to_hex = self.dspkb.keyboard_to_hex()
         self.register = [0] * 16  # general purpose registers (8 bits)
         self.index = 0  # index register  (16 bits)
-        self.PC = START_ADDRESS  # program counter  (16 bits)
+        self.PC = 0x200  # program counter  (16 bits)
         self.SP = 0  # stack pointer  (8 bits)
         self.delay_timer = 0
         self.sound_timer = 0
@@ -256,6 +256,7 @@ class CPU:
         logging.info(f"drawing at position {x_reg}, {y_reg}")
         logging.debug(f"index is at {format(self.index, '02X')}")
         logging.debug(f"index: {self.mem.memory[self.index: self.index+N]}")
+        self.dspkb.video_buffer = copy.copy(self.dspkb.video)  # added to diminish flickering
         for height in range(0, N):
             sprite_line = self.mem.memory[self.index + height]
             for width in range(8):
@@ -275,7 +276,7 @@ class CPU:
     def op_EX9E(self):
         # skips next instruction if key stored in VX is pressed
         X = self.opcode[0] & 0x0F
-        key_to_be_checked = pygame_keymap[self.register[X]]
+        key_to_be_checked = self.dspkb.hex_to_pygame[self.register[X]]
         pygame.event.pump()
         keys = pygame.key.get_pressed()
         if keys[key_to_be_checked]:
@@ -283,7 +284,7 @@ class CPU:
 
     def op_EXA1(self):
         X = self.opcode[0] & 0x0F
-        key_to_be_checked = pygame_keymap[self.register[X]]
+        key_to_be_checked = self.dspkb.hex_to_pygame[self.register[X]]
         pygame.event.pump()
         keys = pygame.key.get_pressed()
         if not keys[key_to_be_checked]:
@@ -303,8 +304,8 @@ class CPU:
         while not key_pressed:
             # event = pygame.event.wait()
             for event in pygame.event.get():
-                if event.type == pygame.KEYDOWN and event.unicode in self.keymap.keys():
-                    key = self.keymap[event.unicode]
+                if event.type == pygame.KEYDOWN and event.unicode in self.dspkb.kb_to_hex.keys():
+                    key = self.dspkb.kb_to_hex[event.unicode]
                     key_pressed = True
                     break
         self.register[X] = key
@@ -383,7 +384,7 @@ class CPU:
 
     def cycle(self):
         # instructions are 2 bytes long
-        self.opcode = self.mem.memory[self.PC: self.PC + 2]
+        self.opcode = self.mem.memory[self.PC : self.PC + 2]
         for i in self.opcode:
             h = format(i, "02X")
             logging.debug(f"opcode: {h}")

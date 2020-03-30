@@ -1,20 +1,22 @@
 from os import path
 
-from consts import START_ADDRESS
-
 
 class Memory:
-    def __init__(self, game_title):
+    def __init__(self, game_title, test):
         self.memory = bytearray(4096)
+        self.test = test
         self.stack = [0] * 16
         self.load_fonts()
         self.load_rom(game_title)
 
     def load_rom(self, file):
         # files should be in big-endian format
-        file_path = path.abspath(path.join("..", "c8games", file))
+        if self.test:
+            file_path = path.join(path.dirname(__file__), "..", "c8games", "tests", file)
+        else:
+            file_path = path.join(path.dirname(__file__), "..", "c8games", file)
         with open(file_path, "rb") as f:
-            address = START_ADDRESS
+            address = 0x200
             for byte in iter(lambda: f.read(1), b""):
                 self.memory[address] = int.from_bytes(byte, "big")
                 address += 1
