@@ -49,7 +49,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-f",
         "--frequency",
-        help="controls the clock speeed in Hz. Maximum value allowed is 1000Hz",
+        help="controls the clock speeed in Hz. Maximum value recommended is 1000Hz",
         type=int,
     )
     parser.add_argument(

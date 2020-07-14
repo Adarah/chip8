@@ -33,7 +33,7 @@ class CPU:
         # call to RCA 1802 program. Since we are not emulating that processor
         # I will leave this blank
         logging.critical("OP 0NNN called, this has not been implemented!")
-        raise Exception(
+        raise NotImplementedError(
             "Tried to execute operation that has not been implemented. Opcode = {}".format(
                 format(self.opcode[0], "02X") + format(self.opcode[1], "02X")
             )
